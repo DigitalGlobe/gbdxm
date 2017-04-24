@@ -26,6 +26,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <classification/CaffeModelPackage.h>
+#include <classification/DLibModelPackage.h>
 #include <classification/ModelMetadataJson.h>
 #include <geometry/cv_program_options.hpp>
 #include <json/json.h>
@@ -67,6 +68,7 @@ po::options_description buildHiddenOptions();
 void addShowOptions(po::options_description& desc);
 void addPackOptions(po::options_description& desc);
 void addPackCaffeOptions(po::options_description& desc);
+void addPackDLibOptions(po::options_description& desc);
 void addUnpackOptions(po::options_description& desc);
 
 GbdxmArgs* readArgs(const po::variables_map& vm, const string& action);
@@ -186,7 +188,7 @@ void addPackOptions(po::options_description& desc)
 {
     po::options_description pack("Pack Options");
     pack.add_options()
-        ("type,t", po::value<string>(), "Type of the input model. Currently supported types:\n \t - caffe")
+        ("type,t", po::value<string>(), "Type of the input model. Currently supported types:\n \t - caffe\n \t - dlib")
         ("json,j", po::value<string>(), "Model metadata in JSON format. Command line parameters will override entries in this file if present.")
         ("name,n", po::value<string>(), "Model name.")
         ("version,V", po::value<string>(), "Model version.")
@@ -205,6 +207,7 @@ void addPackOptions(po::options_description& desc)
         ;
 
     addPackCaffeOptions(pack);
+    addPackDLibOptions(pack);
 
     desc.add(pack);
 }
@@ -218,6 +221,15 @@ void addPackCaffeOptions(po::options_description& desc)
         ("caffe-mean", po::value<string>(), "Caffe mean file name.");
 
     desc.add(caffe);
+}
+
+void addPackDLibOptions(po::options_description& desc)
+{
+    po::options_description dlib("Pack Caffe Options");
+    dlib.add_options()
+        ("dlib-weights", po::value<string>(), "DLib weights file name.");
+
+    desc.add(dlib);
 }
 
 void addUnpackOptions(po::options_description& desc)
@@ -297,7 +309,7 @@ GbdxmArgs* readPackArgs(const po::variables_map& vm)
         auto type = vm["type"].as<string>();
         to_lower(type);
 
-        args->metadata.reset(ModelMetadata::create(type.c_str()));
+        args->metadata = ModelMetadata::create(type.c_str());
         missingFields = ModelMetadataJson::fieldNames(type);
         tryErase(missingFields, "type");
         tryErase(missingFields, "version");
@@ -471,7 +483,7 @@ void readModelMetadata(GbdxmPackArgs& args, vector<string>& missingFields)
     for(const auto& itemName : model->modelMetadataItemNames()) {
         const string& fileName = args.modelFiles[itemName];
         printVerbose(args, "Reading model metadata from " + fileName + "...");
-
+        
         if(!exists(fileName) || is_directory(fileName)) {
             cerr << "File does not exist for " << itemName << " at '" << fileName << "'" << endl;
             exit(1);
@@ -525,6 +537,8 @@ const vector<string>& modelItemNames(const string& type)
 {
     if(type == "caffe") {
         return CaffeModelPackage::ITEM_NAMES;
+    } else if(type == "dlib") {
+        return DLibModelPackage::ITEM_NAMES;
     } else {
         cerr << "Unsupported model type: " << type.c_str() << "." << endl;
         exit(1);
@@ -555,3 +569,4 @@ void tryErase(vector<string>& names, const string& name)
 }
 
 } } } // namespace dg { namespace deepcore { namespace classification {
+
