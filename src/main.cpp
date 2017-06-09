@@ -19,22 +19,25 @@
 
 #include <gbdxmVersion.h>
 
-#include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast/try_lexical_convert.hpp>
 #include <boost/date_time.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
-#include <classification/CaffeModelPackage.h>
-#include <classification/ModelMetadataJson.h>
+#include <fstream>
 #include <geometry/cv_program_options.hpp>
 #include <json/json.h>
+#include <classification/Classification.h>
+#include <classification/CaffeModelPackage.h>
+#include <classification/ModelMetadataJson.h>
+#include <utility/Logging.h>
 
 namespace po = boost::program_options;
 
 using boost::algorithm::iequals;
 using boost::algorithm::join;
 using boost::algorithm::to_lower;
+using boost::algorithm::to_lower_copy;
 using boost::algorithm::trim;
 using boost::conversion::try_lexical_convert;
 using boost::filesystem::file_size;
@@ -75,7 +78,7 @@ GbdxmArgs* readPackArgs(const po::variables_map& vm);
 vector<string> readJsonMetadata(const string& fileName, GbdxmPackArgs& args);
 void readModelMetadata(GbdxmPackArgs& args, vector<string>& missingFields);
 GbdxmArgs* readUnpackArgs(const po::variables_map& vm);
-const vector<string>& modelItemNames(const string& type);
+const vector<string>& modelPackageItems(const string& type);
 ColorMode parseColorMode(string arg);
 void tryErase(vector<string>& names, const string& name);
 
@@ -84,6 +87,9 @@ void tryErase(vector<string>& names, const string& name);
 int main (int argc, const char* const* argv)
 {
     using namespace dg::deepcore::classification;
+
+    dg::deepcore::log::init();
+    init();
 
     // Build argumens
     auto visible = buildVisibleOptions();
@@ -189,6 +195,7 @@ void addPackOptions(po::options_description& desc)
         ("type,t", po::value<string>(), "Type of the input model. Currently supported types:\n \t - caffe")
         ("json,j", po::value<string>(), "Model metadata in JSON format. Command line parameters will override entries in this file if present.")
         ("name,n", po::value<string>(), "Model name.")
+        ("category,C", po::value<string>(), "Model category.")
         ("version,V", po::value<string>(), "Model version.")
         ("description,d", po::value<string>(), "Model description.")
         ("labels,l", po::value<string>(), "Labels file name.")
@@ -317,6 +324,12 @@ GbdxmArgs* readPackArgs(const po::variables_map& vm)
         tryErase(missingFields, "name");
     }
 
+    // --category
+    if(vm.count("category")) {
+        args->metadata->setCategory(to_lower_copy(vm["category"].as<string>()));
+        tryErase(missingFields, "category");
+    }
+
     // --description
     if(vm.count("description")) {
         args->metadata->setDescription(vm["description"].as<string>());
@@ -372,13 +385,10 @@ GbdxmArgs* readPackArgs(const po::variables_map& vm)
     }
 
     // "--<model>-<file>" arguments, i.e. "--caffe-model"
-    auto itemNames = modelItemNames(args->metadata->type());
+    const auto& items = modelPackageItems(args->metadata->type());
     vector<string> missingArgs;
-    while(!itemNames.empty()) {
-        auto itemName = itemNames.back();
-        itemNames.pop_back();
-
-        auto argName = string(args->metadata->type()) + "-" + itemName;
+    for(const auto& item : items) {
+        auto argName = string(args->metadata->type()) + "-" + item.name;
         if(vm.count(argName) && !vm[argName].as<string>().empty()) {
             args->modelFiles[itemName] = vm[argName].as<string>();
         } else if(args->modelFiles.find(itemName) == args->modelFiles.end()){
@@ -521,10 +531,10 @@ GbdxmArgs* readUnpackArgs(const po::variables_map& vm)
     return args.release();
 }
 
-const vector<string>& modelItemNames(const string& type)
+const ModelPackageItems& modelPackageItems(const string& type)
 {
     if(type == "caffe") {
-        return CaffeModelPackage::ITEM_NAMES;
+        return CaffeModelPackage::ITEMS;
     } else {
         cerr << "Unsupported model type: " << type.c_str() << "." << endl;
         exit(1);
