@@ -167,13 +167,13 @@ po::detail::cmdline::style_parser buildExtraStyleParser()
 po::options_description buildVisibleOptions()
 {
     po::options_description desc(
-        "GDBX Model Packaging Tool\n"
+        "GBDX Model Packaging Tool\n"
         "Version: " GBDXM_VERSION_STRING "\n\n"
         "Usage: gbdxm <action> [options] [gbdxm file]\n\n"
         "Actions:\n"
         "  help\t\t\t Show this help message.\n"
         "  show\t\t\t Show package metadata.\n"
-        "  pack\t\t\t Pack a model into a GDBX package.\n"
+        "  pack\t\t\t Pack a model into a GBDX package.\n"
         "  unpack\t\t Unpack a GBDX package and output the original model.\n\n"
         "General Options"
     );
