@@ -94,7 +94,7 @@ int main (int argc, const char* const* argv)
 
         classification::init();
 
-        // Build argumens
+        // Build arguments
         auto visible = buildVisibleOptions();
         auto hidden = buildHiddenOptions();
 
@@ -179,7 +179,7 @@ po::options_description buildVisibleOptions()
     );
 
     desc.add_options()
-        ("verbose,v", "verbose output.")
+        ("verbose,v", "Verbose output.")
         ("gbdxm-file,f", po::value<string>()->value_name("PATH"), "input or output GBDX file.");
 
     addShowOptions(desc);
@@ -194,7 +194,7 @@ po::options_description buildHiddenOptions()
     po::options_description desc;
     desc.add_options()
         ("plaintext", "don't encrypt the model.")
-        ("image-type,i", po::value<string>()->value_name("TYPE"), "Image type. i.e. jpg (deprecated).");
+        ("image-type,i", po::value<string>()->value_name("TYPE"), "Image type. e.g. jpg (deprecated).");
 
     return move(desc);
 }
@@ -218,17 +218,16 @@ void addPackOptions(po::options_description& desc)
         ("version,V", po::value<string>()->value_name("VERSION"), "Model version.")
         ("description,d", po::value<string>()->value_name("DESCRIPTION"), "Model description.")
         ("labels,l", po::value<string>()->value_name("PATH"), "Labels file name.")
-        ("label-names", po::value<vector<string>>()->value_name("LABEL1 [LABEL2 ...]"),
+        ("label-names", po::value<vector<string>>()->multitoken()->value_name("LABEL1 [LABEL2 ...]"),
             "A list of label names.")
         ("date-time", po::value<string>()->value_name("DATE_TIME"),
-            "Date/time the model was created (optional). Date/time is normally set "
-            "automatically, specifying this argument is not recommended. Must be in ISO format, which is "
-            "YYYYMMDDTHHMMSS,fffffffff where T is the date-time separator. i.e. 20020131T100001,123456789")
+            "Date/time the model was created (optional). Default is the current date and time. Must be in the following "
+            "ISO format: YYYYMMDDTHHMMSS[.ffffff], where 'T' is the literal date-time separator. e.g. 20020131T100001.123456")
         ("model-size,w", po::cvSize_value()->value_name("WIDTH [HEIGHT]"), "Classifier model size. Model parameters will "
-            "override this if present. Must specify width and height. i.e. --model-size 128 128")
+            "override this if present. Must specify width and height. e.g. --model-size 128 128")
         ("bounding-box,b", po::cvRect2d_value()->value_name("W S E N"),
             "Training area bounding box (optional). Must specify four "
-            "coordinates: west longitude, south latitude, east longitude, and north latitude. i.e. "
+            "coordinates: west longitude, south latitude, east longitude, and north latitude. e.g. "
             "--bounding-box -180 -90 180 90")
         ("color-mode,c", po::value<string>()->value_name("MODE"),
             "Color mode. Model parameters will override this if present. Must be one of the following: grayscale, rgb, multiband")
@@ -345,7 +344,7 @@ unique_ptr<GbdxmArgs> readShowArgs(const po::variables_map& vm)
 
 void readFrameworkPackItems(map<string, string>& items,
                             map<string, string>& options,
-                            vector<string> missingArgs,
+                            vector<string>& missingArgs,
                             const classification::ItemDescriptions& descriptions,
                             const string& prefix)
 {
@@ -365,12 +364,12 @@ vector<string> readFrameworkPackArgs(const po::variables_map& vm, GbdxmPackArgs&
     auto type = args.package->type();
     map<string, string> cliOptions;
     if(vm.count(type) > 0) {
-        auto argList = vm[args.package->type()].as<vector<string>>();
+        const auto& argList = vm[args.package->type()].as<vector<string>>();
         DG_CHECK(argList.size() % 2 == 0, "--%s must have an even number of arguments", type);
 
         for(auto it = argList.begin(); it != argList.end(); ++it) {
-            auto key = *it++;
-            auto value = *it;
+            const auto& key = *it++;
+            const auto& value = *it;
             cliOptions[key] = value;
         }
     }
@@ -412,7 +411,7 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
         args->identifier = classification::ModelIdentifier::find(type.c_str());
         missingFields = classification::ModelMetadataJson::fieldNames(type);
         tryErase(missingFields, "type");
-        tryErase(missingFields, "version");
+        tryErase(missingFields, "modelVersion");
     }
 
     tryErase(missingFields, "size");
@@ -498,7 +497,7 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
         tryErase(missingFields, "colorMode");
     }
 
-    // "--<type>-<option>" arguments, i.e. "--caffe-model"
+    // "--<type>-<option>" arguments, e.g. "--caffe-model"
     auto missingArgs = readFrameworkPackArgs(vm, *args);
     vector<string> errors;
 
