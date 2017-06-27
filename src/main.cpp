@@ -408,11 +408,12 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
         to_lower(type);
 
         args->package = classification::ModelPackage::create(type.c_str());
-        args->identifier = classification::ModelIdentifier::find(type.c_str());
         missingFields = classification::ModelMetadataJson::fieldNames(type);
         tryErase(missingFields, "type");
         tryErase(missingFields, "modelVersion");
     }
+
+    args->identifier = &args->package->identifier();
 
     tryErase(missingFields, "size");
 
