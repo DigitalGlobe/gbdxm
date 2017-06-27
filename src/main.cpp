@@ -351,7 +351,7 @@ void readFrameworkPackItems(map<string, string>& items,
     for(const auto& item : descriptions) {
         auto it = options.find(item.name);
         if(it != options.end()) {
-            items.insert(*it);
+            items[it->first] = it->second;
             options.erase(it);
         } else if(!item.optional && items.find(item.name) == items.end()) {
             missingArgs.push_back(prefix + item.name);
