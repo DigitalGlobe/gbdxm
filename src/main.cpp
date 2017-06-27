@@ -180,7 +180,7 @@ po::options_description buildVisibleOptions()
 
     desc.add_options()
         ("verbose,v", "Verbose output.")
-        ("gbdxm-file,f", po::value<string>()->value_name("PATH"), "input or output GBDX file.");
+        ("gbdxm-file,f", po::value<string>()->value_name("PATH"), "Input or output GBDXM file.");
 
     addShowOptions(desc);
     addPackOptions(desc);
@@ -328,7 +328,7 @@ unique_ptr<GbdxmArgs> readArgs(const boost::program_options::variables_map& vm, 
     }
 
     // --gbdxm-file
-    DG_CHECK(vm.count("gbdxm-file") > 0, "No GBDX file specified.");
+    DG_CHECK(vm.count("gbdxm-file") > 0, "No GBDXM file specified.");
     args->gbdxFile = vm["gbdxm-file"].as<string>();
 
     return args;
@@ -353,7 +353,7 @@ void readFrameworkPackItems(map<string, string>& items,
         if(it != options.end()) {
             items.insert(*it);
             options.erase(it);
-        } else if(!item.optional) {
+        } else if(!item.optional && items.find(item.name) == items.end()) {
             missingArgs.push_back(prefix + item.name);
         }
     }
@@ -464,7 +464,7 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
     if(vm.count("date-time")) {
         time_t timeCreated;
         try {
-            timeCreated = to_time_t(from_iso_string(vm["time-created"].as<string>()));
+            timeCreated = to_time_t(from_iso_string(vm["date-time"].as<string>()));
         } catch (...) {
             DG_ERROR_THROW("Invalid date/time format in --date-time argument");
         }
@@ -536,7 +536,11 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
 
     auto categories = args->identifier->detectCategory(*args->package);
     if(categories.empty()) {
-        errors.emplace_back("Invalid or unsupported model: category could not be detected");
+        if(metadata.category().empty()) {
+            errors.emplace_back("Invalid or unsupported model: category could not be detected");
+        } else {
+            errors.emplace_back("Invalid or unsupported model");
+        }
     } else if(!metadata.category().empty()) {
         if(find(categories.begin(), categories.end(), metadata.category()) == categories.end()) {
             errors.push_back(
@@ -561,8 +565,8 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
 
 vector<string> readJsonMetadata(const string& fileName, GbdxmPackArgs& args)
 {
-    DG_CHECK(exists(fileName), "%s does not exist");
-    DG_CHECK(!is_directory(fileName), "%s is a directory");
+    DG_CHECK(exists(fileName), "%s does not exist", fileName.c_str());
+    DG_CHECK(!is_directory(fileName), "%s is a directory", fileName.c_str());
 
     vector<string> missingFields;
     ifstream ifs(fileName);
@@ -601,7 +605,7 @@ void readModelMetadata(GbdxmPackArgs& args, vector<string>& missingFields)
 
         // Sanity check, should never happen unless the ModelPackage
         // and ModelIdentifier are set up wrong.
-        DG_CHECK(it != descriptions.end(), "%s is not registered as valid model package item");
+        DG_CHECK(it != descriptions.end(), "'%s' is not registered as valid model package item", itemName.c_str());
 
         if(fileName.empty()) {
             DG_CHECK(it->optional, "--%s-%s argument is missing", args.identifier->type(), itemName.c_str());
@@ -610,12 +614,12 @@ void readModelMetadata(GbdxmPackArgs& args, vector<string>& missingFields)
 
         if(!exists(fileName)) {
             if(it->optional) {
-                DG_LOG(gbdxm, warning) << " invalid --" << args.identifier->type() << "-" << itemName
+                DG_LOG(gbdxm, warning) << "Invalid --" << args.identifier->type() << "-" << itemName
                                        << " argument: "<< fileName << " does not exist";
                 continue;
             } else {
                 // Again, this shouldn't happen, but we'll handle it here anyway.
-                DG_ERROR_THROW("invalid --%s-%s argument: %s does not exist",
+                DG_ERROR_THROW("Invalid --%s-%s argument: %s does not exist",
                                args.identifier->type(), itemName.c_str(), fileName.c_str());
             }
         }
@@ -640,7 +644,6 @@ unique_ptr<GbdxmArgs> readUnpackArgs(const po::variables_map& vm)
     args->action = Action::UNPACK;
 
     // --output-dir
-    DG_CHECK(vm.count("output-dir") > 0, "Missing output directory.");
     args->outputDir = vm["output-dir"].as<string>();
 
     return args;

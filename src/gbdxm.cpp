@@ -22,7 +22,6 @@
 #include <classification/CaffeModelPackage.h>
 #include <classification/GbdxModelReader.h>
 #include <classification/GbdxModelWriter.h>
-#include <sstream>
 #include <utility/Error.h>
 #include <utility/File.h>
 #include <utility/Logging.h>
@@ -39,7 +38,6 @@ using std::ios;
 using std::map;
 using std::ofstream;
 using std::string;
-using std::stringstream;
 using std::vector;
 
 void showModel(const GbdxmArgs& args);
@@ -110,26 +108,32 @@ void packModel(GbdxmPackArgs& args)
     auto& package = *args.package;
     auto& metadata = package.metadata();
 
-    stringstream ess;
+    vector<Error> errors;
 
     // Check the input files
     if(args.labelsFile.empty() && metadata.labels().empty()) {
-        ess << "Labels not given in a file or JSON" << endl;
+        errors.push_back(DG_ERROR_INIT("Labels not given in a file or JSON"));
     } else if(!args.labelsFile.empty() && (!fs::exists(args.labelsFile) || fs::is_directory(args.labelsFile))) {
-        ess << "Label file does not exist at '" << args.labelsFile << "'";
+        errors.push_back(DG_ERROR_INIT("Label file does not exist at '%s'", args.labelsFile.c_str()));
     }
 
     // Find out the total file size while we're checking the files
     int64_t totalFileSize = 0;
     for(const auto& mapItem : args.modelFiles) {
         if(!fs::exists(mapItem.second) || fs::is_directory(mapItem.second)) {
-            ess << "File does not exist for " << mapItem.first << " at '" << mapItem.second << "'" << endl;
+            errors.push_back(DG_ERROR_INIT("File does not exist for %s at '%s'", mapItem.first.c_str(), mapItem.second.c_str()));
             continue;
         }
         totalFileSize += fs::file_size(mapItem.second);
     }
 
-    DG_CHECK(ess.str().empty(), ess.str().c_str());
+    if(!errors.empty()) {
+        for(auto it = errors.begin(); it != (errors.end() - 1); ++it) {
+            DG_ERROR_LOG(gbdxm, *it);
+        }
+
+        throw errors.back();
+    }
 
     metadata.setSize(totalFileSize);
 
