@@ -224,7 +224,7 @@ void addPackOptions(po::options_description& desc)
             "Date/time the model was created (optional). Default is the current date and time. Must be in the following "
             "ISO format: YYYYMMDDTHHMMSS[.ffffff], where 'T' is the literal date-time separator. e.g. 20020131T100001.123456")
         ("model-size,w", po::cvSize_value()->value_name("WIDTH [HEIGHT]"), "Classifier model size. Model parameters will "
-            "override this if present. Must specify width and height. e.g. --model-size 128 128")
+            "override this if present.")
         ("bounding-box,b", po::cvRect2d_value()->value_name("W S E N"),
             "Training area bounding box (optional). Must specify four "
             "coordinates: west longitude, south latitude, east longitude, and north latitude. e.g. "
@@ -494,7 +494,15 @@ unique_ptr<GbdxmArgs> readPackArgs(const po::variables_map& vm)
     // --color-mode
     if(vm.count("color-mode")) {
         metadata.setColorMode(classification::colorModeFromString(vm["color-mode"].as<string>()));
+        DG_CHECK(metadata.colorMode() != classification::ColorMode::UNKNOWN,
+                "Invalid --color-mode argument");
+
         tryErase(missingFields, "colorMode");
+    }
+
+    // --resolution
+    if(vm.count("resolution")) {
+        metadata.setResolution(vm["resolution"].as<cv::Size2d>());
     }
 
     // "--<type>-<option>" arguments, e.g. "--caffe-model"
@@ -584,20 +592,30 @@ void readModelMetadata(GbdxmPackArgs& args, vector<string>& missingFields)
     // Load the files with metadata into the ModelPackage
     for(const auto& itemName : args.identifier->metadataItems()) {
         const string& fileName = args.modelFiles[itemName];
-        if(!exists(fileName)) {
-            const auto& descriptions = args.identifier->itemDescriptions();
-            auto it = find_if(descriptions.begin(), descriptions.end(), [&itemName](const classification::ItemDescription& desc) {
-                return desc.name == itemName;
-            });
 
-            // Sanity check, should never happen unless the ModelPackage
-            // and ModelIdentifier are set up wrong.
-            DG_CHECK(it != descriptions.end(), "%s is not registered as valid model package item");
+        const auto& descriptions = args.identifier->itemDescriptions();
+        auto it = find_if(descriptions.begin(), descriptions.end(), [&itemName](const classification::ItemDescription& desc) {
+            return desc.name == itemName;
+        });
+
+        // Sanity check, should never happen unless the ModelPackage
+        // and ModelIdentifier are set up wrong.
+        DG_CHECK(it != descriptions.end(), "%s is not registered as valid model package item");
+
+        if(fileName.empty()) {
+            DG_CHECK(it->optional, "--%s-%s argument is missing", args.identifier->type(), itemName.c_str());
+            continue;
+        }
+
+        if(!exists(fileName)) {
             if(it->optional) {
+                DG_LOG(gbdxm, warning) << " invalid --" << args.identifier->type() << "-" << itemName
+                                       << " argument: "<< fileName << " does not exist";
                 continue;
             } else {
                 // Again, this shouldn't happen, but we'll handle it here anyway.
-                DG_ERROR_THROW("--%s-%s argument is missing", args.identifier->type(), itemName.c_str());
+                DG_ERROR_THROW("invalid --%s-%s argument: %s does not exist",
+                               args.identifier->type(), itemName.c_str(), fileName.c_str());
             }
         }
 
