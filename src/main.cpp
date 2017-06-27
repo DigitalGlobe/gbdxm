@@ -296,7 +296,7 @@ void addUnpackOptions(po::options_description& desc)
 {
     po::options_description unpack("Unpack Options");
     unpack.add_options()
-        ("output-dir,o", po::value<string>()->value_name(po::name_with_default("PATH", ".")),
+        ("output-dir,o", po::value<string>()->value_name(po::name_with_default("PATH", "."))->default_value("."),
             "Directory for the output model files. Default is current directory.");
 
     desc.add(unpack);
