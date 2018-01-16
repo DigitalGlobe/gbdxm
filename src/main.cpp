@@ -199,11 +199,11 @@ po::options_description buildParseOptions()
 {
     po::options_description desc;
     desc.add_options()
-        ("verbose,v", "")
-        ("gbdxm-file,f", po::value<string>())
-        ("plaintext", "")
-        ("image-type,i", po::value<string>())
-        ("category,C", po::value<string>());
+        ("verbose,v", "Verbose output.")
+        ("gbdxm-file,f", po::value<string>(), "Input or output GBDXM file.")
+        ("plaintext", "Don't encrypt the model.")
+        ("image-type,i", po::value<string>(), "Image type. e.g. jpg (deprecated).")
+        ("category,C", po::value<string>(), "Model category");
 
     addShowOptions(desc);
     addPackOptions(desc, false);
