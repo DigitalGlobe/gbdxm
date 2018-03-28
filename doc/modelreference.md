@@ -108,12 +108,12 @@ Notes:
 ```
   -C [ --category ] CATEGORY            Model category. The supported 
                                         categories are: detector, classifier, 
-                                        segmentation, yolo, ssd.
+                                        segmentation, ssd, yolo.
   --tensorflow NAME VALUE [NAME VALUE ...]
                                         Set multiple TensorFlow options.
   --tensorflow-model PATH               A frozen TensorFlow model file name.
   --tensorflow-anchors PATH             Anchor data, one value per line (only 
-                                        for yolo model) file name (optional).
+                                        for yolo models) file name (optional).
   --tensorflow-input-layer VALUE (="input")
                                         Image input layer name (optional).
   --tensorflow-input-datatype VALUE (="float")
@@ -125,14 +125,14 @@ Notes:
   --tensorflow-output-layers VALUE (="output")
                                         Output layer name(s), comma separated 
                                         (optional).
-  --tensorflow-output-space VALUE (="pixel")
+  --tensorflow-output-space VALUE (="normalized")
                                         For detection algorithms, the range of 
                                         the output coordinates (optional). 
                                         Allowed values are: normalized, pixel.
   --tensorflow-output-type VALUE (="minmax")
-                                        For SSD, the expected box type of the 
-                                        output (optional). Allowed values are: 
-                                        centroid, minmax.
+                                        The expected box type of the output 
+                                        (only for ssd models) (optional). 
+                                        Allowed values are: centroid, minmax.
   --tensorflow-confidence-layer VALUE   Input confidence threshold layer name 
                                         (optional).
   --tensorflow-linear-stretch VALUE (="0.0 1.0 0.0 1.0")
@@ -235,6 +235,12 @@ each tensor into batches.  For instance, given the following:
 
 _Classes_ would be split by batch into {{1}, {2, 1, 2}, {2}, {3, 1, 2}} and
 similarly for _Scores_ and _Bounding Boxes_.
+
+Other parameters:
+ - _Output-Space_, which is either "normalized" or "pixel". If "normalized", the
+ coordinates above are expected to be in normalized to 0-1 per subset. If "pixel",
+ the coordinates above are expected in pixel space.
+
  
 ### YOLO Detection Category
 
@@ -251,7 +257,7 @@ Output layers, which must be specified in the following order:
  row and col are in a box search space (which doesn't correspond to the image
  size).  The output is intepreted in the same manner as
  [`cython_utils.cy_yolo2_findboxes`](https://github.com/thtrieu/darkflow/blob/master/darkflow/cython_utils/cy_yolo2_findboxes.pyx#L53).
-`data` results in a vector which is interpreted as:
+ `data` results in a vector which is interpreted as:
 
  ```
  x = (col + sigmoid(data[0])) / size(cols); // Centered
@@ -267,8 +273,9 @@ Other parameters:
  coordinates, one per line. The coordinates are used in pairs, and there must be
  the same number of pairs as the 4th dimension of the output above.
  - _Output-Space_, which is either "normalized" or "pixel". If "normalized", the
- coordinates above are expected to be in normalized to 0-1. If "pixel", the
- coordinates above are in pixel space.
+ coordinates above are expected to be in normalized to 0-1 per subset. If "pixel",
+ the coordinates above are expected in pixel space.  (The yolo2 implementation
+ above uses pixel space.)
 
 ### SSD Detection Category
 
@@ -290,8 +297,8 @@ Output layers, which must be specified in the following order:
 
 Other parameters:
  - _Output-Space_, which is either "normalized" or "pixel". If "normalized", the
- coordinates above are expected to be in normalized to 0-1. If "pixel", the
- coordinates above are in pixel space.
+ coordinates above are expected to be in normalized to 0-1 per subset. If "pixel",
+ the coordinates above are expected in pixel space.
  - _Output-Type_, which is either "centroid" or "minmax". The box coordinate
  format that the model outputs. Can be either 'centroids' for the format
  `(cx, cy, w, h)` (box center coordinates, width, and height) or 'minmax'
